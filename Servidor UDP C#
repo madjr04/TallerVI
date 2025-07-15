@@ -1,0 +1,64 @@
+using System;
+using System.Net; //Este system es necesario para IPEndPoint y IPAddress
+using System.Net.Sockets; // Este system es necesario para UdpClient
+using System.Text; // Este system es necesario para Encoding
+using System.Threading;
+
+class Program
+{
+    static Boolean estado = true;
+    static void Main()
+    {
+        int puerto = 5000; // en este puerto es donde se recibe la informacion del cliente, si no son iguales, no se recibira la informacion
+        UdpClient servidor = new UdpClient(puerto); // Crea un servidor UDP que escucha en el puerto especificado
+        Console.WriteLine($"Servidor UDP en C# escuchando en el puerto {puerto}..."); // Este mensaje muestra en cual puerto se esta escuchando
+
+
+        Thread receptor = new Thread(() =>
+        {
+            while (estado)
+            {
+                IPEndPoint clienteRemoto = new IPEndPoint(IPAddress.Any, 0);
+                byte[] datos = servidor.Receive(ref clienteRemoto);
+                string mensaje = Encoding.UTF8.GetString(datos);
+
+                if (mensaje != "FIN")
+                {
+                    Console.WriteLine($"\n[{clienteRemoto}] -> {mensaje}");
+                }
+                else
+                {
+                    Console.WriteLine("El otro usuario finalizó la sesión.");
+                    estado = false;
+                    break;
+                }
+            }
+        });
+        receptor.Start();
+
+        // Envío manual por consola
+        Console.WriteLine("Escribe mensajes para enviar. Escribe 'FIN' para salir.");
+        while (estado)
+        {
+            string mensaje = Console.ReadLine();
+            if (mensaje == null) continue;
+
+            byte[] datos = Encoding.UTF8.GetBytes(mensaje);
+            // Dirección del receptor
+            string ipDestino = "127.0.0.1"; 
+            int puertoDestino = 5001;       
+
+            IPEndPoint destino = new IPEndPoint(IPAddress.Parse(ipDestino), puertoDestino);
+            servidor.Send(datos, datos.Length, destino);
+
+            if (mensaje == "FIN")
+            {
+                estado = false;
+                break;
+            }
+        }
+
+        servidor.Close();
+    }
+}
+
